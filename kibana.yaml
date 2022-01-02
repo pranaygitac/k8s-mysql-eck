@@ -1,0 +1,71 @@
+#apiVersion: v1
+#kind: ConfigMap
+#metadata:
+#  name: kibana-config
+#  labels:
+#    component: kibana
+#data:
+#  elasticsearch_username: elastic
+#  elasticsearch_password: exDefle7g306nmylA3fZ # it needs to be changed
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana
+  labels:
+    component: kibana
+    #spec:
+    #  type: NodePort
+    #  selector:
+    #    component: kibana
+    #  ports:
+    #  - port: 5601
+    #    targetPort: 5601
+spec:
+  type: ClusterIP # NodePort
+  ports:
+  - port: 5601
+    protocol: TCP
+    targetPort: 5601 #ui
+    #nodePort: 31336
+  selector:
+    component: kibana
+---    
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+spec:
+  selector:
+    matchLabels:
+      component: kibana
+  template:
+    metadata:
+      labels:
+        component: kibana
+    spec:
+      containers:
+      - name: kibana
+        image: kibana:7.16.2 #docker.elastic.co/kibana/kibana:6.5.4
+        env:
+        - name: ELASTICSEARCH_URL
+          value: http://elasticsearch:9200
+          #        - name: XPACK_SECURITY_ENABLED
+          #          value: "true"
+          #        - name: ELASTICSEARCH_USERNAME
+          #          valueFrom:
+          #            configMapKeyRef:
+          #              name: kibana-config
+          #              key: elasticsearch_username
+          #        - name: ELASTICSEARCH_PASSWORD
+          #          valueFrom:
+          #            configMapKeyRef:
+          #              name: kibana-config
+          #              key: elasticsearch_password
+          #        envFrom:
+          #        - configMapRef:
+          #            name: kibana-config
+        ports:
+        - containerPort: 5601
+          name: http
+          protocol: TCP

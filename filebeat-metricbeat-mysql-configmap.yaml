@@ -1,0 +1,91 @@
+apiVersion: v1
+data:
+  my.cnf: |
+    [mysqld_safe]
+    log_error=/var/log/mysql/error.log
+
+    [mysqld]
+    pid-file= /var/run/mysqld/mysqld.pid
+    socket= /var/run/mysqld/mysqld.sock
+    datadir= /var/lib/mysql
+    secure-file-priv= NULL
+    log_error= /var/log/mysql/error.log
+    general_log_file= /var/log/mysql/mysql.log
+    general_log=1
+    slow_query_log = 1
+    long_query_time = 3
+    slow_query_log_file = /var/log/mysql/slow-query.log
+    # Custom config should go here
+    # !includedir /etc/mysql/conf.d/
+kind: ConfigMap
+metadata:
+  name: mysql-config
+  namespace: default
+  labels:
+    app: mysql
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+ labels:
+   app: mysql
+   component: filebeat
+ name: filebeat-config
+data:
+  filebeat.yml: |
+    filebeat:
+      config:
+        modules:
+          path: /usr/share/filebeat/modules.d/*.yml
+          reload:
+            enabled: true
+      modules:
+      - module: mysql
+        error:
+          enabled: true
+          var.paths: ["/var/log/mysql/error.log*"]
+        slowlog:
+          enabled: true
+          var.paths: ["/var/log/mysql/mysql-slow.log*"]        
+    output:
+      elasticsearch:
+        host: '${NODE_NAME}'
+        hosts: ['${ELASTICSEARCH_HOST:elasticsearch}:${ELASTICSEARCH_PORT:9200}']
+---
+apiVersion: v1
+data:
+  metricbeat.yml: |
+    metricbeat.modules:
+    - module: mysql
+      #enabled: true
+      metricsets:
+        - status
+        - galera_status
+        - performance
+        #- query
+      period: 10s
+
+      # Host DSN should be defined as "user:pass@tcp(127.0.0.1:3306)/"
+      # or "unix(/var/lib/mysql/mysql.sock)/",
+      # or another DSN format supported by <https://github.com/Go-SQL-Driver/MySQL/>.
+      # The username and password can either be set in the DSN or using the username
+      # and password config options. Those specified in the DSN take precedence.
+      hosts: ["root:${MYSQL_ROOT_PASSWORD:qwerty}@tcp(127.0.0.1:3306)/"]
+
+      # Username of hosts. Empty by default.
+      #username: root
+
+      # Password of hosts. Empty by default.
+      #password: secret
+
+      # By setting raw to true, all raw fields from the status metricset will be added to the event.
+      #raw: false
+    output:
+      elasticsearch:
+        host: '${NODE_NAME}'
+        hosts: ['${ELASTICSEARCH_HOST:elasticsearch}:${ELASTICSEARCH_PORT:9200}']
+kind: ConfigMap
+metadata:
+  labels:
+    app: mysql      
+  name: metricbeat-config

@@ -1,0 +1,5 @@
+setup passwords for built-in users with the following command
+
+kubectl exec -it elasticsearch-0  -- bin/elasticsearch-setup-passwords auto -b
+
+copy all genereted credential
